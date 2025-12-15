@@ -1,0 +1,38 @@
+name = "yisu-storage-api"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+ENVIRONMENT = "production"
+CORS_ORIGIN = "*"
+JWT_SECRET = "yisu-storage-super-secret-jwt-key-2024"
+
+# JWT Secret - 在生产环境中通过 wrangler secret put JWT_SECRET 设置
+# JWT_SECRET = "your-super-secret-key-change-in-production"
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "yisu-storage-db"
+database_id = "689a75be-d750-42f8-b6b2-ca7bfa884671"
+
+# R2 bucket binding
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "yisu-storage-files"
+
+# Wrangler 会自动编译 TypeScript
+
+# Environment-specific configuration
+[env.development]
+vars = { ENVIRONMENT = "development", CORS_ORIGIN = "*", JWT_SECRET = "dev-secret-key-not-for-production" }
+
+[env.production]
+routes = [
+  { pattern = "api.358966.xyz/*", zone_name = "358966.xyz" }
+]
+
+# 定时任务 - 每天凌晨0点清理过期文件
+[triggers]
+crons = ["0 0 * * *"]
