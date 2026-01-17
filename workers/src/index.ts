@@ -9,7 +9,18 @@ interface Env {
   JWT_SECRET: string;
   ENVIRONMENT: string;
   CORS_ORIGIN: string;
+  SITE_URL?: string;  // 站点域名，可配置备用域名
+  API_URL?: string;   // API 域名，可配置备用域名
 }
+
+// 域名配置 - 支持三个域名：主域名 + 两个备用域名
+// 主域名: 358966.xyz / api.358966.xyz
+// 备用1: pan.ysun.de5.net / api.pan.ysun.de5.net
+// 备用2: pan.ysunyang.qzz.io / api.pan.ysunyang.qzz.io
+const getDomainConfig = (env: Env) => ({
+  siteUrl: env.SITE_URL || 'https://358966.xyz',
+  apiUrl: env.API_URL || 'https://api.358966.xyz',
+});
 
 interface User {
   id: number;
@@ -38,11 +49,19 @@ interface JWTPayload {
 async function createJWT(payload: Record<string, unknown>, secret: string): Promise<string> {
   const header = { alg: 'HS256', typ: 'JWT' };
   
-  const encode = (obj: Record<string, unknown>) => 
-    btoa(JSON.stringify(obj)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  // UTF-8 safe base64 encoding
+  const encodeBase64Url = (str: string): string => {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(str);
+    let binary = '';
+    for (let i = 0; i < data.length; i++) {
+      binary += String.fromCharCode(data[i]);
+    }
+    return btoa(binary).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  };
   
-  const headerB64 = encode(header);
-  const payloadB64 = encode(payload);
+  const headerB64 = encodeBase64Url(JSON.stringify(header));
+  const payloadB64 = encodeBase64Url(JSON.stringify(payload));
   const data = `${headerB64}.${payloadB64}`;
   
   const encoder = new TextEncoder();
@@ -86,10 +105,21 @@ async function verifyJWT(token: string, secret: string): Promise<Record<string, 
     const valid = await crypto.subtle.verify('HMAC', key, signatureBytes, encoder.encode(data));
     if (!valid) return null;
     
-    // Decode payload
-    const payloadStr = payloadB64.replace(/-/g, '+').replace(/_/g, '/');
-    const payloadPadded = payloadStr + '='.repeat((4 - payloadStr.length % 4) % 4);
-    const payload = JSON.parse(atob(payloadPadded));
+    // UTF-8 safe base64 decoding
+    const decodeBase64Url = (str: string): string => {
+      const base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
+      const binary = atob(padded);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      const decoder = new TextDecoder('utf-8');
+      return decoder.decode(bytes);
+    };
+    
+    // Decode payload with UTF-8 support
+    const payload = JSON.parse(decodeBase64Url(payloadB64));
     
     return payload;
   } catch {
@@ -151,54 +181,19 @@ app.get('/', (c) => {
 
 // ==================== Auth APIs ====================
 
-// POST /api/register - 用户注册
+// 多账号配置（允许以下账号登录）
+const ALLOWED_USERS = [
+  { email: '358966OoOo@proton.me', password: '358966OoOo', userId: 1 },
+  { email: '359755OoOo@proton.me', password: '359755OoOo', userId: 2 },
+];
+
+// POST /api/register - 注册功能已禁用
 app.post('/api/register', async (c) => {
-  try {
-    const body = await c.req.json<{ email: string; password: string }>();
-    
-    if (!body.email || !body.password) {
-      return c.json({ error: '邮箱和密码不能为空' }, 400);
-    }
-
-    // Email format validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(body.email)) {
-      return c.json({ error: '邮箱格式不正确' }, 400);
-    }
-
-    // Password length validation
-    if (body.password.length < 6) {
-      return c.json({ error: '密码长度至少6位' }, 400);
-    }
-
-    // Check if email already exists
-    const existingUser = await c.env.DB.prepare(
-      'SELECT id FROM Users WHERE email = ?'
-    ).bind(body.email).first();
-
-    if (existingUser) {
-      return c.json({ error: '该邮箱已被注册' }, 409);
-    }
-
-    // Hash password and create user
-    const hashedPassword = await hashPassword(body.password);
-    
-    const result = await c.env.DB.prepare(
-      'INSERT INTO Users (email, hashed_password) VALUES (?, ?)'
-    ).bind(body.email, hashedPassword).run();
-
-    return c.json({
-      success: true,
-      message: '注册成功',
-      userId: result.meta.last_row_id,
-    }, 201);
-  } catch (error) {
-    console.error('Register error:', error);
-    return c.json({ error: '注册失败，请稍后重试' }, 500);
-  }
+  // 完全禁用注册功能
+  return c.json({ error: '注册功能已关闭，此系统仅限邀请用户使用' }, 403);
 });
 
-// POST /api/login - 用户登录
+// POST /api/login - 用户登录（仅限预设账号）
 app.post('/api/login', async (c) => {
   try {
     const body = await c.req.json<{ email: string; password: string }>();
@@ -207,24 +202,18 @@ app.post('/api/login', async (c) => {
       return c.json({ error: '邮箱和密码不能为空' }, 400);
     }
 
-    // Find user by email
-    const user = await c.env.DB.prepare(
-      'SELECT * FROM Users WHERE email = ?'
-    ).bind(body.email).first<User>();
+    // 查找匹配的账号
+    const user = ALLOWED_USERS.find(
+      u => u.email === body.email && u.password === body.password
+    );
 
     if (!user) {
       return c.json({ error: '邮箱或密码错误' }, 401);
     }
 
-    // Verify password
-    const isValidPassword = await verifyPassword(body.password, user.hashed_password);
-    if (!isValidPassword) {
-      return c.json({ error: '邮箱或密码错误' }, 401);
-    }
-
     // Generate JWT token (expires in 7 days)
     const payload = {
-      userId: user.id,
+      userId: user.userId,
       email: user.email,
       exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24 * 7),
     };
@@ -236,7 +225,7 @@ app.post('/api/login', async (c) => {
       message: '登录成功',
       token,
       user: {
-        id: user.id,
+        id: user.userId,
         email: user.email,
       },
     });
@@ -515,8 +504,9 @@ app.post('/api/files/:id/generate-download-url', authMiddleware, async (c) => {
       exp: expiresAt,
     }, c.env.JWT_SECRET);
 
-    // Generate the download URL
-    const downloadUrl = `https://api.358966.xyz/api/download/${downloadToken}`;
+    // Generate the download URL - 使用动态域名配置
+    const { apiUrl } = getDomainConfig(c.env);
+    const downloadUrl = `${apiUrl}/api/download/${downloadToken}`;
 
     return c.json({
       success: true,
@@ -598,8 +588,9 @@ app.post('/api/files/generate-download-url', authMiddleware, async (c) => {
       exp: expiresAt,
     }, c.env.JWT_SECRET);
 
-    // Generate the download URL - 使用API域名
-    const downloadUrl = `https://api.358966.xyz/api/download/${downloadToken}`;
+    // Generate the download URL - 使用动态域名配置
+    const { apiUrl } = getDomainConfig(c.env);
+    const downloadUrl = `${apiUrl}/api/download/${downloadToken}`;
 
     return c.json({
       success: true,
@@ -804,7 +795,7 @@ app.post('/api/file-groups', authMiddleware, async (c) => {
   }
 });
 
-// POST /api/file-groups/:groupId/items - 上传文件组子文件
+// POST /api/file-groups/:groupId/items - 上传文件组子文件（小于100MB）
 app.post('/api/file-groups/:groupId/items', authMiddleware, async (c) => {
   try {
     const user = c.get('user') as JWTPayload;
@@ -829,7 +820,7 @@ app.post('/api/file-groups/:groupId/items', authMiddleware, async (c) => {
 
     // Check file size limit (100MB per chunk)
     if (file.size > 100 * 1024 * 1024) {
-      return c.json({ error: '子文件大小超过限制（最大100MB）' }, 400);
+      return c.json({ error: '子文件大小超过限制（最大100MB），请使用分块上传' }, 400);
     }
 
     // Generate R2 key with group prefix
@@ -868,6 +859,143 @@ app.post('/api/file-groups/:groupId/items', authMiddleware, async (c) => {
   } catch (error) {
     console.error('Upload group item error:', error);
     return c.json({ error: '上传文件失败' }, 500);
+  }
+});
+
+// ==================== Chunked Upload APIs ====================
+
+// POST /api/file-groups/:groupId/items/chunked/init - 初始化分块上传
+app.post('/api/file-groups/:groupId/items/chunked/init', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user') as JWTPayload;
+    const groupId = parseInt(c.req.param('groupId'));
+    const body = await c.req.json<{ fileName: string; fileSize: number; totalChunks: number }>();
+
+    // Verify group ownership
+    const group = await c.env.DB.prepare(
+      'SELECT * FROM FileGroups WHERE id = ? AND user_id = ?'
+    ).bind(groupId, user.userId).first<FileGroupRecord>();
+
+    if (!group) {
+      return c.json({ error: '文件组不存在' }, 404);
+    }
+
+    // Generate unique upload ID and R2 key
+    const uploadId = crypto.randomUUID();
+    const r2Key = `groups/${user.userId}/${groupId}/${Date.now()}-${body.fileName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+
+    // Create multipart upload
+    const multipartUpload = await c.env.BUCKET.createMultipartUpload(r2Key, {
+      httpMetadata: {
+        contentType: 'application/octet-stream',
+      },
+      customMetadata: {
+        originalName: body.fileName,
+        groupId: groupId.toString(),
+        uploadId,
+      },
+    });
+
+    return c.json({
+      success: true,
+      uploadId: multipartUpload.uploadId,
+      r2Key,
+      totalChunks: body.totalChunks,
+    });
+  } catch (error) {
+    console.error('Init chunked upload error:', error);
+    return c.json({ error: '初始化分块上传失败' }, 500);
+  }
+});
+
+// POST /api/file-groups/:groupId/items/chunked/upload - 上传单个分块
+app.post('/api/file-groups/:groupId/items/chunked/upload', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user') as JWTPayload;
+    const groupId = parseInt(c.req.param('groupId'));
+
+    // Verify group ownership
+    const group = await c.env.DB.prepare(
+      'SELECT * FROM FileGroups WHERE id = ? AND user_id = ?'
+    ).bind(groupId, user.userId).first<FileGroupRecord>();
+
+    if (!group) {
+      return c.json({ error: '文件组不存在' }, 404);
+    }
+
+    const formData = await c.req.formData();
+    const chunk = formData.get('chunk') as File | null;
+    const uploadId = formData.get('uploadId') as string;
+    const r2Key = formData.get('r2Key') as string;
+    const partNumber = parseInt(formData.get('partNumber') as string);
+
+    if (!chunk || !uploadId || !r2Key || isNaN(partNumber)) {
+      return c.json({ error: '参数不完整' }, 400);
+    }
+
+    // Resume multipart upload and upload part
+    const multipartUpload = c.env.BUCKET.resumeMultipartUpload(r2Key, uploadId);
+    const arrayBuffer = await chunk.arrayBuffer();
+    const uploadedPart = await multipartUpload.uploadPart(partNumber, arrayBuffer);
+
+    return c.json({
+      success: true,
+      partNumber,
+      etag: uploadedPart.etag,
+    });
+  } catch (error) {
+    console.error('Upload chunk error:', error);
+    return c.json({ error: '上传分块失败' }, 500);
+  }
+});
+
+// POST /api/file-groups/:groupId/items/chunked/complete - 完成分块上传
+app.post('/api/file-groups/:groupId/items/chunked/complete', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user') as JWTPayload;
+    const groupId = parseInt(c.req.param('groupId'));
+    const body = await c.req.json<{
+      uploadId: string;
+      r2Key: string;
+      fileName: string;
+      fileSize: number;
+      parts: Array<{ partNumber: number; etag: string }>;
+    }>();
+
+    // Verify group ownership
+    const group = await c.env.DB.prepare(
+      'SELECT * FROM FileGroups WHERE id = ? AND user_id = ?'
+    ).bind(groupId, user.userId).first<FileGroupRecord>();
+
+    if (!group) {
+      return c.json({ error: '文件组不存在' }, 404);
+    }
+
+    // Resume and complete multipart upload
+    const multipartUpload = c.env.BUCKET.resumeMultipartUpload(body.r2Key, body.uploadId);
+    await multipartUpload.complete(body.parts);
+
+    // Save to D1
+    const result = await c.env.DB.prepare(`
+      INSERT INTO FileGroupItems (group_id, file_name, file_size, file_type, r2_key)
+      VALUES (?, ?, ?, ?, ?)
+    `).bind(
+      groupId,
+      body.fileName,
+      body.fileSize,
+      'application/octet-stream',
+      body.r2Key
+    ).run();
+
+    return c.json({
+      success: true,
+      itemId: result.meta.last_row_id,
+      fileName: body.fileName,
+      fileSize: body.fileSize,
+    });
+  } catch (error) {
+    console.error('Complete chunked upload error:', error);
+    return c.json({ error: '完成分块上传失败' }, 500);
   }
 });
 
@@ -942,7 +1070,9 @@ app.post('/api/file-groups/:groupId/generate-download-url', authMiddleware, asyn
       exp: expiresAt,
     }, c.env.JWT_SECRET);
 
-    const downloadUrl = `https://yisu-storage.pages.dev/download?token=${token}`;
+    // 使用前端下载页面 - 使用动态域名配置
+    const { siteUrl } = getDomainConfig(c.env);
+    const downloadUrl = `${siteUrl}/download?token=${token}`;
 
     return c.json({
       success: true,
@@ -1005,10 +1135,11 @@ app.get('/api/file-groups/download/:token', async (c) => {
         exp: Math.floor(Date.now() / 1000) + 3600, // 1 hour
       }, c.env.JWT_SECRET);
 
+      const { apiUrl } = getDomainConfig(c.env);
       fileList.push({
         fileName: item.file_name,
         fileSize: item.file_size,
-        downloadUrl: `https://api.358966.xyz/api/download/${fileToken}`,
+        downloadUrl: `${apiUrl}/api/download/${fileToken}`,
       });
     }
 

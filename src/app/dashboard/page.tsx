@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import JSZip from 'jszip';
+import { apiFetch, getApiUrl } from '@/lib/apiClient';
 import { 
   CloudArrowUpIcon, 
   FolderIcon, 
@@ -154,8 +155,6 @@ export default function DashboardPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const largeFileInputRef = useRef<HTMLInputElement>(null);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-
   const getToken = useCallback(() => {
     return localStorage.getItem('token');
   }, []);
@@ -170,7 +169,7 @@ export default function DashboardPage() {
     if (!token) return;
 
     try {
-      const response = await fetch(`${apiUrl}/api/files`, {
+      const response = await apiFetch('/api/files', {
         headers: { 'Authorization': `Bearer ${token}` },
       });
 
@@ -188,7 +187,7 @@ export default function DashboardPage() {
     } catch (err) {
       console.error('Fetch files error:', err);
     }
-  }, [apiUrl, getToken, router]);
+  }, [getToken, router]);
 
   // Fetch file groups
   const fetchFileGroups = useCallback(async () => {
@@ -196,7 +195,7 @@ export default function DashboardPage() {
     if (!token) return;
 
     try {
-      const response = await fetch(`${apiUrl}/api/file-groups`, {
+      const response = await apiFetch('/api/file-groups', {
         headers: { 'Authorization': `Bearer ${token}` },
       });
 
@@ -207,7 +206,7 @@ export default function DashboardPage() {
     } catch (err) {
       console.error('Fetch file groups error:', err);
     }
-  }, [apiUrl, getToken]);
+  }, [getToken]);
 
   // Fetch stats
   const fetchStats = useCallback(async () => {
@@ -215,7 +214,7 @@ export default function DashboardPage() {
     if (!token) return;
 
     try {
-      const response = await fetch(`${apiUrl}/api/user/stats`, {
+      const response = await apiFetch('/api/user/stats', {
         headers: { 'Authorization': `Bearer ${token}` },
       });
 
@@ -227,7 +226,7 @@ export default function DashboardPage() {
     } catch (err) {
       console.error('Fetch stats error:', err);
     }
-  }, [apiUrl, getToken]);
+  }, [getToken]);
 
   // Initial load
   useEffect(() => {
@@ -295,7 +294,7 @@ export default function DashboardPage() {
         setUploadProgress(0);
       });
 
-      xhr.open('POST', `${apiUrl}/api/files/upload-direct`);
+      xhr.open('POST', `${getApiUrl()}/api/files/upload-direct`);
       xhr.setRequestHeader('Authorization', `Bearer ${token}`);
       xhr.send(formData);
     } catch (err) {
@@ -321,38 +320,136 @@ export default function DashboardPage() {
     setUploadProgress(0);
     setUploadStatus('正在解析ZIP文件...');
 
+    const CHUNK_SIZE = 50 * 1024 * 1024; // 50MB per chunk
+
+    // 分块上传函数
+    const uploadFileChunked = async (groupId: number, entryFile: File, entryName: string): Promise<boolean> => {
+      const totalChunks = Math.ceil(entryFile.size / CHUNK_SIZE);
+      
+      try {
+        // 1. 初始化分块上传
+        const initResponse = await apiFetch(`/api/file-groups/${groupId}/items/chunked/init`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            fileName: entryName,
+            fileSize: entryFile.size,
+            totalChunks,
+          }),
+        });
+
+        const initData = await initResponse.json();
+        if (!initData.success) {
+          showToast(initData.error || '初始化分块上传失败', 'error');
+          return false;
+        }
+
+        const { uploadId, r2Key } = initData;
+        const uploadedParts: Array<{ partNumber: number; etag: string }> = [];
+
+        // 2. 上传每个分块
+        for (let i = 0; i < totalChunks; i++) {
+          const start = i * CHUNK_SIZE;
+          const end = Math.min(start + CHUNK_SIZE, entryFile.size);
+          const chunk = entryFile.slice(start, end);
+          const partNumber = i + 1; // R2 分块从1开始
+
+          const formData = new FormData();
+          formData.append('chunk', chunk);
+          formData.append('uploadId', uploadId);
+          formData.append('r2Key', r2Key);
+          formData.append('partNumber', partNumber.toString());
+
+          const chunkResponse = await apiFetch(`/api/file-groups/${groupId}/items/chunked/upload`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData,
+          });
+
+          const chunkData = await chunkResponse.json();
+          if (!chunkData.success) {
+            showToast(chunkData.error || `上传分块 ${partNumber} 失败`, 'error');
+            return false;
+          }
+
+          uploadedParts.push({ partNumber, etag: chunkData.etag });
+        }
+
+        // 3. 完成分块上传
+        const completeResponse = await apiFetch(`/api/file-groups/${groupId}/items/chunked/complete`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            uploadId,
+            r2Key,
+            fileName: entryName,
+            fileSize: entryFile.size,
+            parts: uploadedParts,
+          }),
+        });
+
+        const completeData = await completeResponse.json();
+        return completeData.success;
+      } catch (err) {
+        console.error('Chunked upload error:', err);
+        return false;
+      }
+    };
+
     try {
       // Parse ZIP file
       const zip = await JSZip.loadAsync(file);
       const entries: ZipFileEntry[] = [];
       
-      for (const [path, zipEntry] of Object.entries(zip.files)) {
-        if (!zipEntry.dir) {
-          const blob = await zipEntry.async('blob');
-          const entryFile = new File([blob], path, { type: 'application/octet-stream' });
-          
-          // Check if any single file exceeds 100MB
-          if (entryFile.size > 100 * 1024 * 1024) {
-            showToast(`文件 ${path} 超过100MB，无法上传`, 'error');
-            setUploading(false);
-            return;
-          }
-          
-          entries.push({ name: path, size: entryFile.size, file: entryFile });
-        }
-      }
-
-      if (entries.length === 0) {
+      // 获取所有非目录条目
+      const zipEntries = Object.entries(zip.files).filter(([, entry]) => !entry.dir);
+      const totalEntries = zipEntries.length;
+      
+      if (totalEntries === 0) {
         showToast('ZIP文件为空', 'error');
         setUploading(false);
         return;
       }
+      
+      setUploadStatus(`正在解析 ${totalEntries} 个文件...`);
+      
+      // 并发解析ZIP条目（每批100个 - 最高性能）
+      const PARSE_BATCH_SIZE = 100;
+      for (let i = 0; i < zipEntries.length; i += PARSE_BATCH_SIZE) {
+        const batch = zipEntries.slice(i, i + PARSE_BATCH_SIZE);
+        const batchPromises = batch.map(async ([path, zipEntry]) => {
+          const blob = await zipEntry.async('blob');
+          const entryFile = new File([blob], path, { type: 'application/octet-stream' });
+          return { name: path, size: entryFile.size, file: entryFile };
+        });
+        
+        const batchResults = await Promise.all(batchPromises);
+        entries.push(...batchResults);
+        
+        // 每5批更新一次进度（减少渲染开销）
+        if (i % (PARSE_BATCH_SIZE * 5) === 0 || entries.length === totalEntries) {
+          setUploadStatus(`正在解析文件... (${entries.length}/${totalEntries})`);
+          setUploadProgress(Math.round((entries.length / totalEntries) * 15)); // 解析占15%进度
+        }
+      }
 
-      setUploadStatus(`发现 ${entries.length} 个文件，正在创建文件组...`);
+      // 统计大文件数量
+      const largeFiles = entries.filter(e => e.size > 100 * 1024 * 1024);
+      if (largeFiles.length > 0) {
+        setUploadStatus(`发现 ${entries.length} 个文件（含 ${largeFiles.length} 个大文件），正在创建文件组...`);
+      } else {
+        setUploadStatus(`发现 ${entries.length} 个文件，正在创建文件组...`);
+      }
 
       // Create file group
       const totalSize = entries.reduce((sum, e) => sum + e.size, 0);
-      const createResponse = await fetch(`${apiUrl}/api/file-groups`, {
+      const createResponse = await apiFetch('/api/file-groups', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -374,32 +471,72 @@ export default function DashboardPage() {
       }
 
       const groupId = createData.groupId;
+      const CONCURRENT_UPLOADS = 50; // 并发上传数量（最高性能）
 
-      // Upload each file
-      for (let i = 0; i < entries.length; i++) {
-        const entry = entries[i];
-        setUploadStatus(`正在上传 (${i + 1}/${entries.length}): ${entry.name}`);
-        setUploadProgress(Math.round(((i) / entries.length) * 100));
+      // 上传单个文件的函数
+      const uploadSingleFile = async (entry: ZipFileEntry, index: number): Promise<boolean> => {
+        const isLargeFile = entry.size > 100 * 1024 * 1024;
+        
+        try {
+          if (isLargeFile) {
+            // 分块上传大文件
+            return await uploadFileChunked(groupId, entry.file, entry.name);
+          } else {
+            // 直接上传小文件
+            const formData = new FormData();
+            formData.append('file', entry.file);
+            formData.append('fileName', entry.name);
 
-        const formData = new FormData();
-        formData.append('file', entry.file);
-        formData.append('fileName', entry.name);
+            const uploadResponse = await apiFetch(`/api/file-groups/${groupId}/items`, {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${token}` },
+              body: formData,
+            });
 
-        const uploadResponse = await fetch(`${apiUrl}/api/file-groups/${groupId}/items`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` },
-          body: formData,
+            return uploadResponse.ok;
+          }
+        } catch {
+          return false;
+        }
+      };
+
+      // 并发上传文件
+      let completedCount = 0;
+      let failedCount = 0;
+      
+      // 分批并发上传
+      for (let i = 0; i < entries.length; i += CONCURRENT_UPLOADS) {
+        const batch = entries.slice(i, i + CONCURRENT_UPLOADS);
+        const batchPromises = batch.map((entry, batchIndex) => 
+          uploadSingleFile(entry, i + batchIndex)
+        );
+
+        // 等待当前批次完成
+        const results = await Promise.allSettled(batchPromises);
+        
+        // 统计结果
+        results.forEach((result) => {
+          if (result.status === 'fulfilled' && result.value) {
+            completedCount++;
+          } else {
+            failedCount++;
+            completedCount++;
+          }
         });
 
-        if (!uploadResponse.ok) {
-          const errorData = await uploadResponse.json();
-          showToast(errorData.error || `上传 ${entry.name} 失败`, 'error');
-        }
+        // 批次完成后更新状态 (解析占15%，上传占85%)
+        setUploadStatus(`正在高速上传... (${completedCount}/${entries.length})`);
+        setUploadProgress(15 + Math.round((completedCount / entries.length) * 85));
       }
 
       setUploadProgress(100);
-      setUploadStatus('上传完成！');
-      showToast('大文件上传成功', 'success');
+      if (failedCount > 0) {
+        setUploadStatus(`上传完成！成功 ${entries.length - failedCount} 个，失败 ${failedCount} 个`);
+        showToast(`上传完成，${failedCount} 个文件失败`, 'info');
+      } else {
+        setUploadStatus('上传完成！');
+        showToast('所有文件上传成功', 'success');
+      }
       fetchFileGroups();
       fetchStats();
     } catch (err) {
@@ -420,7 +557,7 @@ export default function DashboardPage() {
     if (!token) return;
 
     try {
-      const response = await fetch(`${apiUrl}/api/files/${file.id}/generate-download-url`, {
+      const response = await apiFetch(`/api/files/${file.id}/generate-download-url`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
       });
@@ -442,7 +579,7 @@ export default function DashboardPage() {
     if (!token) return;
 
     try {
-      const response = await fetch(`${apiUrl}/api/file-groups/${group.id}/generate-download-url`, {
+      const response = await apiFetch(`/api/file-groups/${group.id}/generate-download-url`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
       });
@@ -464,7 +601,7 @@ export default function DashboardPage() {
     if (!token) return;
 
     try {
-      const response = await fetch(`${apiUrl}/api/file-groups/${group.id}`, {
+      const response = await apiFetch(`/api/file-groups/${group.id}`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
 
@@ -485,7 +622,7 @@ export default function DashboardPage() {
     if (!token) return;
 
     try {
-      const response = await fetch(`${apiUrl}/api/files/${expirationModal.id}/expiration`, {
+      const response = await apiFetch(`/api/files/${expirationModal.id}/expiration`, {
         method: 'PUT',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -513,7 +650,7 @@ export default function DashboardPage() {
     if (!token) return;
 
     try {
-      const response = await fetch(`${apiUrl}/api/files/${file.id}`, {
+      const response = await apiFetch(`/api/files/${file.id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
       });
@@ -539,7 +676,7 @@ export default function DashboardPage() {
     if (!token) return;
 
     try {
-      const response = await fetch(`${apiUrl}/api/file-groups/${group.id}`, {
+      const response = await apiFetch(`/api/file-groups/${group.id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
       });
@@ -744,7 +881,7 @@ export default function DashboardPage() {
             大文件上传 (ZIP分片上传)
           </h2>
           <p className="text-sm text-white/50 mb-4">
-            上传ZIP文件，系统会自动解析并分片上传。每个子文件不超过100MB即可。
+            上传ZIP文件，系统会自动解析并上传。大于100MB的子文件会自动分块上传。
           </p>
           
           <input
@@ -778,7 +915,7 @@ export default function DashboardPage() {
               <ArchiveBoxIcon className="w-12 h-12 text-orange-400 mx-auto mb-4" />
               <button className="btn-primary bg-gradient-to-r from-orange-500 to-yellow-500 mb-2">选择ZIP文件</button>
               <p className="text-white/50 text-sm">系统将自动解析并分片上传</p>
-              <p className="text-white/30 text-xs mt-2">支持任意大小的ZIP文件（子文件需 ≤ 100MB）</p>
+              <p className="text-white/30 text-xs mt-2">支持任意大小的ZIP文件，大于100MB的子文件会自动分块上传</p>
             </div>
           )}
 

@@ -75,22 +75,16 @@ export default function Home() {
           
           <p className="text-lg text-white/50 max-w-2xl mx-auto mb-10">
             基于 Cloudflare 全球边缘网络，为您提供高速稳定的文件存储与分享服务。
-            免费注册，即刻享有10GB云端空间。
+            专属私有云存储，尊享10GB云端空间。
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link 
-              href="/register"
+              href="/login"
               className="btn-primary text-lg px-8 py-4 flex items-center justify-center gap-2"
             >
-              免费注册
+              立即登录
               <ArrowRightIcon className="w-5 h-5" />
-            </Link>
-            <Link 
-              href="/login"
-              className="btn-secondary text-lg px-8 py-4"
-            >
-              登录账户
             </Link>
           </div>
           
@@ -154,9 +148,9 @@ export default function Home() {
           
           <div className="space-y-8">
             {[
-              { step: '01', title: '注册账户', desc: '使用邮箱快速注册，立即获得10GB免费存储空间' },
+              { step: '01', title: '账户登录', desc: '使用授权账户登录，即刻访问专属10GB云端存储空间' },
               { step: '02', title: '上传文件', desc: '拖拽或点击上传，支持任意类型文件，实时显示上传进度' },
-              { step: '03', title: '分享管理', desc: '一键生成分享链接，24小时有效期，安全可控' },
+              { step: '03', title: '分享管理', desc: '一键生成分享链接，永久有效，安全可控' },
             ].map((item, index) => (
               <div key={index} className="glass-card p-6 flex items-center gap-6">
                 <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0">
@@ -205,21 +199,21 @@ export default function Home() {
             <div className="relative">
               <h2 className="text-3xl md:text-4xl font-bold mb-4">准备好开始了吗？</h2>
               <p className="text-lg text-white/60 mb-8 max-w-xl mx-auto">
-                立即注册，免费获得10GB云端存储空间，体验极速文件分享服务
+                登录您的专属账户，即刻享有10GB云端存储空间，体验极速文件分享服务
               </p>
               
               <Link 
-                href="/register"
+                href="/login"
                 className="btn-primary text-lg px-10 py-4 inline-flex items-center gap-2"
               >
-                立即开始
+                立即登录
                 <ArrowRightIcon className="w-5 h-5" />
               </Link>
               
               <div className="flex flex-wrap justify-center gap-6 mt-10 text-sm text-white/50">
                 <div className="flex items-center gap-2">
                   <CheckCircleIcon className="w-5 h-5 text-green-400" />
-                  <span>无需信用卡</span>
+                  <span>安全加密</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircleIcon className="w-5 h-5 text-green-400" />
@@ -227,7 +221,7 @@ export default function Home() {
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircleIcon className="w-5 h-5 text-green-400" />
-                  <span>永久免费</span>
+                  <span>全球加速</span>
                 </div>
               </div>
             </div>
@@ -245,7 +239,7 @@ export default function Home() {
               </div>
               <div>
                 <p className="font-bold text-gradient">伊苏存储</p>
-                <p className="text-xs text-white/50">358966.xyz</p>
+                <p className="text-xs text-white/50">{process.env.NEXT_PUBLIC_SITE_URL?.replace(/^https?:\/\//, '') || '358966.xyz'}</p>
               </div>
             </div>
             

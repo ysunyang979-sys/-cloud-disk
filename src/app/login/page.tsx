@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { apiFetch } from '@/lib/apiClient';
 import { 
   CloudIcon, 
   EyeIcon,
@@ -24,8 +24,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-      const response = await fetch(`${apiUrl}/api/login`, {
+      const response = await apiFetch('/api/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -151,10 +150,7 @@ export default function LoginPage() {
 
         <div className="mt-8 text-center">
           <p className="text-white/50">
-            还没有账户？{' '}
-            <Link href="/register" className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors">
-              立即注册
-            </Link>
+            此系统仅限邀请用户使用
           </p>
         </div>
 

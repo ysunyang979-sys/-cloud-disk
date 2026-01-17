@@ -7,6 +7,9 @@ compatibility_flags = ["nodejs_compat"]
 ENVIRONMENT = "production"
 CORS_ORIGIN = "*"
 JWT_SECRET = "yisu-storage-super-secret-jwt-key-2024"
+# 默认使用主域名
+SITE_URL = "https://358966.xyz"
+API_URL = "https://api.358966.xyz"
 
 # JWT Secret - 在生产环境中通过 wrangler secret put JWT_SECRET 设置
 # JWT_SECRET = "your-super-secret-key-change-in-production"
@@ -27,11 +30,57 @@ bucket_name = "yisu-storage-files"
 # Environment-specific configuration
 [env.development]
 vars = { ENVIRONMENT = "development", CORS_ORIGIN = "*", JWT_SECRET = "dev-secret-key-not-for-production" }
+[[env.development.d1_databases]]
+binding = "DB"
+database_name = "yisu-storage-db"
+database_id = "689a75be-d750-42f8-b6b2-ca7bfa884671"
+[[env.development.r2_buckets]]
+binding = "BUCKET"
+bucket_name = "yisu-storage-files"
 
+# 生产环境 - 支持所有三个域名
 [env.production]
+vars = { SITE_URL = "https://358966.xyz", API_URL = "https://api.358966.xyz", ENVIRONMENT = "production", CORS_ORIGIN = "*", JWT_SECRET = "yisu-storage-super-secret-jwt-key-2024" }
 routes = [
-  { pattern = "api.358966.xyz/*", zone_name = "358966.xyz" }
+  { pattern = "api.358966.xyz/*", zone_name = "358966.xyz" },
+  { pattern = "api-pan.ysun.de5.net/*", zone_name = "ysun.de5.net" },
+  { pattern = "api-pan.ysunyang.qzz.io/*", zone_name = "ysunyang.qzz.io" }
 ]
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "yisu-storage-db"
+database_id = "689a75be-d750-42f8-b6b2-ca7bfa884671"
+[[env.production.r2_buckets]]
+binding = "BUCKET"
+bucket_name = "yisu-storage-files"
+
+# 备用域名环境1: pan.ysun.de5.net（主域名过期后使用）
+[env.backup1]
+vars = { SITE_URL = "https://pan.ysun.de5.net", API_URL = "https://api-pan.ysun.de5.net", ENVIRONMENT = "production", CORS_ORIGIN = "*", JWT_SECRET = "yisu-storage-super-secret-jwt-key-2024" }
+routes = [
+  { pattern = "api-pan.ysun.de5.net/*", zone_name = "ysun.de5.net" }
+]
+[[env.backup1.d1_databases]]
+binding = "DB"
+database_name = "yisu-storage-db"
+database_id = "689a75be-d750-42f8-b6b2-ca7bfa884671"
+[[env.backup1.r2_buckets]]
+binding = "BUCKET"
+bucket_name = "yisu-storage-files"
+
+# 备用域名环境2: pan.ysunyang.qzz.io（主域名过期后使用）
+[env.backup2]
+vars = { SITE_URL = "https://pan.ysunyang.qzz.io", API_URL = "https://api-pan.ysunyang.qzz.io", ENVIRONMENT = "production", CORS_ORIGIN = "*", JWT_SECRET = "yisu-storage-super-secret-jwt-key-2024" }
+routes = [
+  { pattern = "api-pan.ysunyang.qzz.io/*", zone_name = "ysunyang.qzz.io" }
+]
+[[env.backup2.d1_databases]]
+binding = "DB"
+database_name = "yisu-storage-db"
+database_id = "689a75be-d750-42f8-b6b2-ca7bfa884671"
+[[env.backup2.r2_buckets]]
+binding = "BUCKET"
+bucket_name = "yisu-storage-files"
 
 # 定时任务 - 每天凌晨0点清理过期文件
 [triggers]

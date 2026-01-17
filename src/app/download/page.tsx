@@ -4,6 +4,7 @@ import { Suspense } from 'react';
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import JSZip from 'jszip';
+import { apiFetch } from '@/lib/apiClient';
 import { 
   FolderOpenIcon, 
   ArrowDownTrayIcon,
@@ -45,8 +46,6 @@ function GroupDownloadContent() {
   const [groupData, setGroupData] = useState<GroupData | null>(null);
   const [error, setError] = useState('');
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-
   useEffect(() => {
     if (token) {
       fetchGroupData();
@@ -59,10 +58,9 @@ function GroupDownloadContent() {
 
   const fetchGroupData = async () => {
     try {
-      const url = `${apiUrl}/api/file-groups/download/${token}`;
-      console.log('Fetching:', url);
+      console.log('Fetching group data with token:', token);
       
-      const response = await fetch(url);
+      const response = await apiFetch(`/api/file-groups/download/${token}`);
       console.log('Response status:', response.status);
       
       const data = await response.json();
@@ -91,36 +89,68 @@ function GroupDownloadContent() {
     try {
       const zip = new JSZip();
       const files = groupData.files;
+      const CONCURRENT_DOWNLOADS = 50; // 并发下载数量（最高性能）
+      
+      let completedCount = 0;
+      let failedCount = 0;
 
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        setDownloadStatus(`正在下载 (${i + 1}/${files.length}): ${file.fileName}`);
-        setDownloadProgress(Math.round((i / files.length) * 90));
-
+      // 下载单个文件的函数
+      const downloadSingleFile = async (file: FileItem): Promise<{ name: string; blob: Blob | null }> => {
         try {
           const response = await fetch(file.downloadUrl);
           if (response.ok) {
             const blob = await response.blob();
-            zip.file(file.fileName, blob);
-          } else {
-            console.error(`Failed to download ${file.fileName}`);
+            return { name: file.fileName, blob };
           }
         } catch (err) {
           console.error(`Error downloading ${file.fileName}:`, err);
         }
+        return { name: file.fileName, blob: null };
+      };
+
+      // 分批并发下载
+      for (let i = 0; i < files.length; i += CONCURRENT_DOWNLOADS) {
+        const batch = files.slice(i, i + CONCURRENT_DOWNLOADS);
+        const batchPromises = batch.map(file => downloadSingleFile(file));
+
+        // 等待当前批次完成
+        const results = await Promise.all(batchPromises);
+
+        // 添加到ZIP并统计
+        for (const result of results) {
+          if (result.blob) {
+            zip.file(result.name, result.blob);
+            completedCount++;
+          } else {
+            failedCount++;
+            completedCount++;
+          }
+        }
+
+        // 批次完成后更新状态
+        setDownloadStatus(`正在高速下载... (${completedCount}/${files.length})`);
+        setDownloadProgress(Math.round((completedCount / files.length) * 80));
       }
 
       setDownloadStatus('正在打包ZIP文件...');
-      setDownloadProgress(95);
+      setDownloadProgress(85);
 
+      // 使用更快的压缩级别 (1-9, 1最快9最小)
       const zipBlob = await zip.generateAsync({ 
         type: 'blob',
         compression: 'DEFLATE',
-        compressionOptions: { level: 6 }
+        compressionOptions: { level: 3 } // 降低压缩级别以加快打包速度
+      }, (metadata) => {
+        // 更新打包进度
+        setDownloadProgress(85 + Math.round(metadata.percent * 0.15));
       });
 
       setDownloadProgress(100);
-      setDownloadStatus('下载完成！');
+      if (failedCount > 0) {
+        setDownloadStatus(`下载完成！${failedCount} 个文件失败`);
+      } else {
+        setDownloadStatus('下载完成！');
+      }
 
       // Trigger download
       const url = URL.createObjectURL(zipBlob);
