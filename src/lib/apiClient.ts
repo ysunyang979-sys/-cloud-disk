@@ -2,14 +2,23 @@
  * API 客户端模块 - 支持域名自动故障转移
  * 
  * 当主域名不可用时，自动切换到备用域名
+ * 用户需要在环境变量中配置自己的域名
  */
 
-// 域名配置列表（按优先级排序）
-const DOMAIN_CONFIG = [
-  { api: 'https://api.358966.xyz', site: 'https://358966.xyz' },
-  { api: 'https://api-pan.ysun.de5.net', site: 'https://pan.ysun.de5.net' },
-  { api: 'https://api-pan.ysunyang.qzz.io', site: 'https://pan.ysunyang.qzz.io' },
-];
+// 从环境变量获取配置的域名
+function getConfiguredDomains() {
+  // 生产环境：从环境变量读取
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  
+  if (apiUrl) {
+    return [{ api: apiUrl, site: process.env.NEXT_PUBLIC_SITE_URL || '' }];
+  }
+  
+  // 如果没有配置环境变量，使用默认的workers.dev域名（用户部署后自动生成）
+  return [
+    { api: '', site: '' }, // 用户需要配置自己的域名
+  ];
+}
 
 // 开发模式域名
 const DEV_DOMAIN = { api: 'http://localhost:8787', site: 'http://localhost:3000' };
@@ -32,13 +41,21 @@ function isDevelopment(): boolean {
 }
 
 /**
+ * 获取域名配置
+ */
+function getDomainConfig() {
+  return getConfiguredDomains();
+}
+
+/**
  * 获取当前保存的域名索引
  */
 function getSavedDomainIndex(): number {
   if (typeof window === 'undefined') return 0;
   const saved = localStorage.getItem(STORAGE_KEY);
   const index = saved ? parseInt(saved, 10) : 0;
-  return index >= 0 && index < DOMAIN_CONFIG.length ? index : 0;
+  const domains = getDomainConfig();
+  return index >= 0 && index < domains.length ? index : 0;
 }
 
 /**
@@ -47,7 +64,8 @@ function getSavedDomainIndex(): number {
 function saveDomainIndex(index: number): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem(STORAGE_KEY, index.toString());
-  console.log(`[API Client] 切换到域名: ${DOMAIN_CONFIG[index].api}`);
+  const domains = getDomainConfig();
+  console.log(`[API Client] 切换到域名: ${domains[index].api}`);
 }
 
 /**
@@ -106,8 +124,9 @@ export function getApiUrl(): string {
   if (isDevelopment()) {
     return DEV_DOMAIN.api;
   }
+  const domains = getDomainConfig();
   const index = getSavedDomainIndex();
-  return DOMAIN_CONFIG[index].api;
+  return domains[index]?.api || '';
 }
 
 /**
@@ -117,15 +136,16 @@ export function getSiteUrl(): string {
   if (isDevelopment()) {
     return DEV_DOMAIN.site;
   }
+  const domains = getDomainConfig();
   const index = getSavedDomainIndex();
-  return DOMAIN_CONFIG[index].site;
+  return domains[index]?.site || '';
 }
 
 /**
  * 获取所有配置的域名列表
  */
 export function getAllDomains() {
-  return DOMAIN_CONFIG;
+  return getDomainConfig();
 }
 
 /**
@@ -141,8 +161,10 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
     return fetchWithTimeout(`${DEV_DOMAIN.api}${path}`, options);
   }
   
+  const DOMAIN_CONFIG = getDomainConfig();
+  
   // 如果当前不是使用主域名，定期检查主域名是否恢复
-  if (shouldCheckPrimaryDomain()) {
+  if (shouldCheckPrimaryDomain() && DOMAIN_CONFIG[0]?.api) {
     console.log('[API Client] 尝试检查主域名是否恢复...');
     const primaryAvailable = await testDomain(DOMAIN_CONFIG[0].api);
     if (primaryAvailable) {
@@ -159,6 +181,9 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
   for (let attempt = 0; attempt < DOMAIN_CONFIG.length; attempt++) {
     const domainIndex = (startIndex + attempt) % DOMAIN_CONFIG.length;
     const domain = DOMAIN_CONFIG[domainIndex];
+    
+    if (!domain?.api) continue;
+    
     const url = `${domain.api}${path}`;
     
     try {
@@ -177,7 +202,10 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
       
       // 如果是第一个域名失败，继续尝试下一个
       if (attempt < DOMAIN_CONFIG.length - 1) {
-        console.log(`[API Client] 尝试备用域名 ${DOMAIN_CONFIG[(domainIndex + 1) % DOMAIN_CONFIG.length].api}...`);
+        const nextDomain = DOMAIN_CONFIG[(domainIndex + 1) % DOMAIN_CONFIG.length];
+        if (nextDomain?.api) {
+          console.log(`[API Client] 尝试备用域名 ${nextDomain.api}...`);
+        }
       }
     }
   }
@@ -208,14 +236,15 @@ export function resetToPrimaryDomain(): void {
  * 获取当前域名状态信息（用于调试）
  */
 export function getDomainStatus() {
+  const domains = getDomainConfig();
   if (typeof window === 'undefined') {
-    return { current: DOMAIN_CONFIG[0], index: 0, all: DOMAIN_CONFIG };
+    return { current: domains[0], index: 0, all: domains };
   }
   const index = getSavedDomainIndex();
   return {
-    current: DOMAIN_CONFIG[index],
+    current: domains[index],
     index,
-    all: DOMAIN_CONFIG,
+    all: domains,
     isDev: isDevelopment(),
   };
 }

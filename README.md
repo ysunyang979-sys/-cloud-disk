@@ -1,6 +1,10 @@
-# 伊苏存储 (Yisu Storage)
+# SunnyCloud
 
 基于 Cloudflare 技术栈的文件存储和分享平台。
+
+> 🚀 **快速开始**: 下载后 10 分钟完成部署！ 👉 [**快速部署指南**](./docs/QUICK_DEPLOY.md)
+>
+> 📖 **完整教程**: 从零搭建详细步骤 👉 [**详细教程**](./docs/TUTORIAL.md)
 
 ## ✨ 功能特性
 
@@ -10,6 +14,7 @@
 - ⏰ 文件过期时间设置
 - 📂 文件分组管理
 - 🌐 全球 CDN 加速
+- 🌓 明暗主题切换
 
 ## 🛠️ 技术栈
 
@@ -22,7 +27,7 @@
 ## 📁 项目结构
 
 ```
-yisu-storage/
+sunnycloud/
 ├── src/app/                    # Next.js 前端页面
 │   ├── page.tsx                # 首页（营销落地页）
 │   ├── login/page.tsx          # 登录页面
@@ -63,10 +68,10 @@ npm install -g wrangler
 wrangler login
 
 # 创建 D1 数据库
-wrangler d1 create yisu-storage-db
+wrangler d1 create sunnycloud-db
 
 # 创建 R2 存储桶
-wrangler r2 bucket create yisu-storage-files
+wrangler r2 bucket create sunnycloud-files
 ```
 
 ### 4. 更新配置
@@ -76,7 +81,7 @@ wrangler r2 bucket create yisu-storage-files
 ```toml
 [[d1_databases]]
 binding = "DB"
-database_name = "yisu-storage-db"
+database_name = "sunnycloud-db"
 database_id = "你的数据库ID"
 ```
 
@@ -84,9 +89,9 @@ database_id = "你的数据库ID"
 
 ```bash
 cd workers
-wrangler d1 execute yisu-storage-db --file=./migrations/0001_initial.sql
-wrangler d1 execute yisu-storage-db --file=./migrations/0002_file_groups.sql
-wrangler d1 execute yisu-storage-db --file=./migrations/0003_expiration.sql
+wrangler d1 execute sunnycloud-db --file=./migrations/0001_initial.sql
+wrangler d1 execute sunnycloud-db --file=./migrations/0002_file_groups.sql
+wrangler d1 execute sunnycloud-db --file=./migrations/0003_expiration.sql
 ```
 
 ### 6. 设置 JWT Secret
@@ -139,7 +144,7 @@ npm run deploy
 npm run build
 
 # 使用 wrangler 部署
-npx wrangler pages deploy out --project-name=yisu-storage
+npx wrangler pages deploy out --project-name=sunnycloud
 ```
 
 ## 📡 API 接口
@@ -175,6 +180,7 @@ npx wrangler pages deploy out --project-name=yisu-storage
 | 变量名 | 说明 |
 |--------|------|
 | NEXT_PUBLIC_API_URL | API 服务地址 |
+| NEXT_PUBLIC_SITE_URL | 站点地址（可选） |
 
 ### Workers (后端)
 
@@ -182,6 +188,16 @@ npx wrangler pages deploy out --project-name=yisu-storage
 |--------|------|------|
 | JWT_SECRET | JWT 签名密钥 | Secret |
 | CORS_ORIGIN | 允许的跨域来源 | Variable |
+| SITE_URL | 站点地址 | Variable |
+| API_URL | API 地址 | Variable |
+
+## 🌓 主题切换
+
+SunnyCloud 支持明暗主题切换：
+
+- 默认跟随系统主题
+- 点击界面右上角的太阳/月亮图标切换主题
+- 主题设置会自动保存到本地
 
 ## 📄 许可证
 

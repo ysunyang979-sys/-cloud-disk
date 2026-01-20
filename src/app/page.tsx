@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { ThemeToggle } from './layout';
 import { 
   CloudIcon, 
   ShieldCheckIcon, 
@@ -51,6 +52,11 @@ const techStack = [
 export default function Home() {
   return (
     <div className="min-h-screen">
+      {/* Theme Toggle - Fixed Position */}
+      <div className="fixed top-6 right-6 z-50">
+        <ThemeToggle />
+      </div>
+
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center px-4">
         {/* Decorative elements */}
@@ -66,14 +72,14 @@ export default function Home() {
           </div>
           
           <h1 className="text-5xl md:text-7xl font-bold mb-6">
-            <span className="text-gradient">伊苏存储</span>
+            <span className="text-gradient">SunnyCloud</span>
           </h1>
           
-          <p className="text-xl md:text-2xl text-white/70 mb-4">
+          <p className="text-xl md:text-2xl text-secondary mb-4">
             安全 · 快速 · 可靠的云端文件存储平台
           </p>
           
-          <p className="text-lg text-white/50 max-w-2xl mx-auto mb-10">
+          <p className="text-lg text-muted max-w-2xl mx-auto mb-10">
             基于 Cloudflare 全球边缘网络，为您提供高速稳定的文件存储与分享服务。
             专属私有云存储，尊享10GB云端空间。
           </p>
@@ -92,23 +98,23 @@ export default function Home() {
           <div className="grid grid-cols-3 gap-8 mt-16 max-w-md mx-auto">
             <div>
               <p className="text-3xl font-bold text-gradient">10GB</p>
-              <p className="text-sm text-white/50">免费空间</p>
+              <p className="text-sm text-muted">免费空间</p>
             </div>
             <div>
               <p className="text-3xl font-bold text-gradient">100MB</p>
-              <p className="text-sm text-white/50">单文件上限</p>
+              <p className="text-sm text-muted">单文件上限</p>
             </div>
             <div>
               <p className="text-3xl font-bold text-gradient">∞</p>
-              <p className="text-sm text-white/50">文件类型</p>
+              <p className="text-sm text-muted">文件类型</p>
             </div>
           </div>
         </div>
         
         {/* Scroll indicator */}
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
-          <div className="w-6 h-10 rounded-full border-2 border-white/30 flex items-start justify-center p-2">
-            <div className="w-1.5 h-3 bg-white/50 rounded-full animate-pulse" />
+          <div className="w-6 h-10 rounded-full border-2 border-current opacity-30 flex items-start justify-center p-2">
+            <div className="w-1.5 h-3 bg-current opacity-50 rounded-full animate-pulse" />
           </div>
         </div>
       </section>
@@ -118,7 +124,7 @@ export default function Home() {
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">强大功能</h2>
-            <p className="text-lg text-white/60">一站式文件管理解决方案</p>
+            <p className="text-lg text-secondary">一站式文件管理解决方案</p>
           </div>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -131,7 +137,7 @@ export default function Home() {
                   <feature.icon className="w-7 h-7 text-white" />
                 </div>
                 <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-                <p className="text-white/60">{feature.description}</p>
+                <p className="text-secondary">{feature.description}</p>
               </div>
             ))}
           </div>
@@ -139,11 +145,11 @@ export default function Home() {
       </section>
 
       {/* How it works */}
-      <section className="py-24 px-4 bg-white/[0.02]">
+      <section className="py-24 px-4 bg-black/[0.02] dark:bg-white/[0.02]">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">使用流程</h2>
-            <p className="text-lg text-white/60">三步开启云端存储之旅</p>
+            <p className="text-lg text-secondary">三步开启云端存储之旅</p>
           </div>
           
           <div className="space-y-8">
@@ -154,11 +160,11 @@ export default function Home() {
             ].map((item, index) => (
               <div key={index} className="glass-card p-6 flex items-center gap-6">
                 <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                  <span className="text-2xl font-bold">{item.step}</span>
+                  <span className="text-2xl font-bold text-white">{item.step}</span>
                 </div>
                 <div>
                   <h3 className="text-xl font-semibold mb-1">{item.title}</h3>
-                  <p className="text-white/60">{item.desc}</p>
+                  <p className="text-secondary">{item.desc}</p>
                 </div>
               </div>
             ))}
@@ -171,17 +177,17 @@ export default function Home() {
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">技术架构</h2>
-            <p className="text-lg text-white/60">基于 Cloudflare 现代云原生技术栈</p>
+            <p className="text-lg text-secondary">基于 Cloudflare 现代云原生技术栈</p>
           </div>
           
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {techStack.map((tech, index) => (
               <div key={index} className="glass-card p-5 text-center">
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center mx-auto mb-3">
-                  <ServerStackIcon className="w-6 h-6 text-indigo-400" />
+                  <ServerStackIcon className="w-6 h-6 text-indigo-500" />
                 </div>
                 <p className="font-semibold mb-1">{tech.name}</p>
-                <p className="text-sm text-white/50">{tech.desc}</p>
+                <p className="text-sm text-muted">{tech.desc}</p>
               </div>
             ))}
           </div>
@@ -198,7 +204,7 @@ export default function Home() {
             
             <div className="relative">
               <h2 className="text-3xl md:text-4xl font-bold mb-4">准备好开始了吗？</h2>
-              <p className="text-lg text-white/60 mb-8 max-w-xl mx-auto">
+              <p className="text-lg text-secondary mb-8 max-w-xl mx-auto">
                 登录您的专属账户，即刻享有10GB云端存储空间，体验极速文件分享服务
               </p>
               
@@ -210,17 +216,17 @@ export default function Home() {
                 <ArrowRightIcon className="w-5 h-5" />
               </Link>
               
-              <div className="flex flex-wrap justify-center gap-6 mt-10 text-sm text-white/50">
+              <div className="flex flex-wrap justify-center gap-6 mt-10 text-sm text-muted">
                 <div className="flex items-center gap-2">
-                  <CheckCircleIcon className="w-5 h-5 text-green-400" />
+                  <CheckCircleIcon className="w-5 h-5 text-green-500" />
                   <span>安全加密</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckCircleIcon className="w-5 h-5 text-green-400" />
+                  <CheckCircleIcon className="w-5 h-5 text-green-500" />
                   <span>即刻可用</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckCircleIcon className="w-5 h-5 text-green-400" />
+                  <CheckCircleIcon className="w-5 h-5 text-green-500" />
                   <span>全球加速</span>
                 </div>
               </div>
@@ -230,7 +236,7 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="py-12 px-4 border-t border-white/10">
+      <footer className="py-12 px-4 border-t border-current/10">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-3">
@@ -238,30 +244,30 @@ export default function Home() {
                 <CloudIcon className="w-6 h-6 text-white" />
               </div>
               <div>
-                <p className="font-bold text-gradient">伊苏存储</p>
-                <p className="text-xs text-white/50">{process.env.NEXT_PUBLIC_SITE_URL?.replace(/^https?:\/\//, '') || '358966.xyz'}</p>
+                <p className="font-bold text-gradient">SunnyCloud</p>
+                <p className="text-xs text-muted">Secure Cloud Storage</p>
               </div>
             </div>
             
-            <div className="flex items-center gap-6 text-sm text-white/50">
+            <div className="flex items-center gap-6 text-sm text-muted">
               <div className="flex items-center gap-2">
-                <ShieldCheckIcon className="w-4 h-4 text-green-400" />
+                <ShieldCheckIcon className="w-4 h-4 text-green-500" />
                 <span>安全加密</span>
               </div>
               <div className="flex items-center gap-2">
-                <BoltIcon className="w-4 h-4 text-yellow-400" />
+                <BoltIcon className="w-4 h-4 text-yellow-500" />
                 <span>CDN加速</span>
               </div>
               <div className="flex items-center gap-2">
-                <GlobeAltIcon className="w-4 h-4 text-blue-400" />
+                <GlobeAltIcon className="w-4 h-4 text-blue-500" />
                 <span>全球可用</span>
               </div>
             </div>
           </div>
           
-          <div className="text-center mt-8 pt-8 border-t border-white/5">
-            <p className="text-sm text-white/30">
-              © {new Date().getFullYear()} 伊苏存储. All rights reserved.
+          <div className="text-center mt-8 pt-8 border-t border-current/5">
+            <p className="text-sm text-muted">
+              © {new Date().getFullYear()} SunnyCloud. All rights reserved.
             </p>
           </div>
         </div>

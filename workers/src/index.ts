@@ -9,17 +9,17 @@ interface Env {
   JWT_SECRET: string;
   ENVIRONMENT: string;
   CORS_ORIGIN: string;
-  SITE_URL?: string;  // 站点域名，可配置备用域名
-  API_URL?: string;   // API 域名，可配置备用域名
+  SITE_URL?: string;  // 站点域名，需在环境变量中配置
+  API_URL?: string;   // API 域名，需在环境变量中配置
 }
 
-// 域名配置 - 支持三个域名：主域名 + 两个备用域名
-// 主域名: 358966.xyz / api.358966.xyz
-// 备用1: pan.ysun.de5.net / api.pan.ysun.de5.net
-// 备用2: pan.ysunyang.qzz.io / api.pan.ysunyang.qzz.io
+// 域名配置 - 从环境变量读取，用户需自行配置
+// 示例配置:
+// SITE_URL = "https://your-domain.com"
+// API_URL = "https://api.your-domain.com"
 const getDomainConfig = (env: Env) => ({
-  siteUrl: env.SITE_URL || 'https://358966.xyz',
-  apiUrl: env.API_URL || 'https://api.358966.xyz',
+  siteUrl: env.SITE_URL || '',
+  apiUrl: env.API_URL || '',
 });
 
 interface User {
@@ -173,7 +173,7 @@ app.use('*', logger());
 app.get('/', (c) => {
   return c.json({
     status: 'ok',
-    service: '伊苏存储 API',
+    service: 'SunnyCloud API',
     version: '1.0.0',
     timestamp: new Date().toISOString(),
   });
@@ -183,8 +183,8 @@ app.get('/', (c) => {
 
 // 多账号配置（允许以下账号登录）
 const ALLOWED_USERS = [
-  { email: '358966OoOo@proton.me', password: '358966OoOo', userId: 1 },
-  { email: '359755OoOo@proton.me', password: '359755OoOo', userId: 2 },
+  { email: '第一个邮箱', password: '第一个密码', userId: 1 },
+  { email: '第二个邮箱', password: '第二个密码', userId: 2 },
 ];
 
 // POST /api/register - 注册功能已禁用

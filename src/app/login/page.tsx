@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/apiClient';
+import { ThemeToggle } from '../layout';
 import { 
   CloudIcon, 
   EyeIcon,
@@ -53,6 +54,11 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
+      {/* Theme Toggle - Fixed Position */}
+      <div className="fixed top-6 right-6 z-50">
+        <ThemeToggle />
+      </div>
+
       {/* Background orbs */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
         <div className="floating-orb" style={{
@@ -82,18 +88,18 @@ export default function LoginPage() {
         
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gradient mb-2">欢迎回来</h1>
-          <p className="text-white/60">登录您的伊苏存储账户</p>
+          <p className="text-secondary">登录您的 SunnyCloud 账户</p>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+          <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 text-sm">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-sm text-white/70 mb-2">邮箱地址</label>
+            <label className="block text-sm text-secondary mb-2">邮箱地址</label>
             <input
               type="email"
               value={email}
@@ -105,7 +111,7 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-sm text-white/70 mb-2">密码</label>
+            <label className="block text-sm text-secondary mb-2">密码</label>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
@@ -118,7 +124,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-secondary transition-colors"
               >
                 {showPassword ? (
                   <EyeSlashIcon className="w-5 h-5" />
@@ -149,13 +155,13 @@ export default function LoginPage() {
         </form>
 
         <div className="mt-8 text-center">
-          <p className="text-white/50">
+          <p className="text-muted">
             此系统仅限邀请用户使用
           </p>
         </div>
 
-        <div className="mt-8 pt-6 border-t border-white/10 text-center">
-          <p className="text-xs text-white/30">
+        <div className="mt-8 pt-6 border-t border-current/10 text-center">
+          <p className="text-xs text-muted">
             登录即表示您同意我们的服务条款和隐私政策
           </p>
         </div>

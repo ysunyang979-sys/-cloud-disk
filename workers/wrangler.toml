@@ -1,4 +1,4 @@
-name = "yisu-storage-api"
+name = "sunnycloud-api"
 main = "src/index.ts"
 compatibility_date = "2024-12-01"
 compatibility_flags = ["nodejs_compat"]
@@ -6,81 +6,51 @@ compatibility_flags = ["nodejs_compat"]
 [vars]
 ENVIRONMENT = "production"
 CORS_ORIGIN = "*"
-JWT_SECRET = "yisu-storage-super-secret-jwt-key-2024"
-# 默认使用主域名
-SITE_URL = "https://358966.xyz"
-API_URL = "https://api.358966.xyz"
-
-# JWT Secret - 在生产环境中通过 wrangler secret put JWT_SECRET 设置
-# JWT_SECRET = "your-super-secret-key-change-in-production"
+# JWT_SECRET - 建议通过 wrangler secret put JWT_SECRET 设置安全密钥
+# 以下域名变量需要配置为你自己的域名
+# SITE_URL = "https://your-domain.com"
+# API_URL = "https://api.your-domain.com"
 
 # D1 Database binding
+# 注意：database_id 需要替换为你自己创建的数据库 ID
 [[d1_databases]]
 binding = "DB"
-database_name = "yisu-storage-db"
-database_id = "689a75be-d750-42f8-b6b2-ca7bfa884671"
+database_name = "sunnycloud-db"
+database_id = "你的数据库ID"  # 替换为你的 database_id
 
 # R2 bucket binding
 [[r2_buckets]]
 binding = "BUCKET"
-bucket_name = "yisu-storage-files"
+bucket_name = "sunnycloud-files"
 
 # Wrangler 会自动编译 TypeScript
 
 # Environment-specific configuration
 [env.development]
-vars = { ENVIRONMENT = "development", CORS_ORIGIN = "*", JWT_SECRET = "dev-secret-key-not-for-production" }
+vars = { ENVIRONMENT = "development", CORS_ORIGIN = "*" }
 [[env.development.d1_databases]]
 binding = "DB"
-database_name = "yisu-storage-db"
-database_id = "689a75be-d750-42f8-b6b2-ca7bfa884671"
+database_name = "sunnycloud-db"
+database_id = "你的数据库ID"  # 替换为你的 database_id
 [[env.development.r2_buckets]]
 binding = "BUCKET"
-bucket_name = "yisu-storage-files"
+bucket_name = "sunnycloud-files"
 
-# 生产环境 - 支持所有三个域名
+# 生产环境配置
+# 部署前请配置你自己的域名
 [env.production]
-vars = { SITE_URL = "https://358966.xyz", API_URL = "https://api.358966.xyz", ENVIRONMENT = "production", CORS_ORIGIN = "*", JWT_SECRET = "yisu-storage-super-secret-jwt-key-2024" }
-routes = [
-  { pattern = "api.358966.xyz/*", zone_name = "358966.xyz" },
-  { pattern = "api-pan.ysun.de5.net/*", zone_name = "ysun.de5.net" },
-  { pattern = "api-pan.ysunyang.qzz.io/*", zone_name = "ysunyang.qzz.io" }
-]
+vars = { ENVIRONMENT = "production", CORS_ORIGIN = "*" }
+# 如果有自定义域名，取消以下注释并配置
+# routes = [
+#   { pattern = "api.your-domain.com/*", zone_name = "your-domain.com" }
+# ]
 [[env.production.d1_databases]]
 binding = "DB"
-database_name = "yisu-storage-db"
-database_id = "689a75be-d750-42f8-b6b2-ca7bfa884671"
+database_name = "sunnycloud-db"
+database_id = "你的数据库ID"  # 替换为你的 database_id
 [[env.production.r2_buckets]]
 binding = "BUCKET"
-bucket_name = "yisu-storage-files"
-
-# 备用域名环境1: pan.ysun.de5.net（主域名过期后使用）
-[env.backup1]
-vars = { SITE_URL = "https://pan.ysun.de5.net", API_URL = "https://api-pan.ysun.de5.net", ENVIRONMENT = "production", CORS_ORIGIN = "*", JWT_SECRET = "yisu-storage-super-secret-jwt-key-2024" }
-routes = [
-  { pattern = "api-pan.ysun.de5.net/*", zone_name = "ysun.de5.net" }
-]
-[[env.backup1.d1_databases]]
-binding = "DB"
-database_name = "yisu-storage-db"
-database_id = "689a75be-d750-42f8-b6b2-ca7bfa884671"
-[[env.backup1.r2_buckets]]
-binding = "BUCKET"
-bucket_name = "yisu-storage-files"
-
-# 备用域名环境2: pan.ysunyang.qzz.io（主域名过期后使用）
-[env.backup2]
-vars = { SITE_URL = "https://pan.ysunyang.qzz.io", API_URL = "https://api-pan.ysunyang.qzz.io", ENVIRONMENT = "production", CORS_ORIGIN = "*", JWT_SECRET = "yisu-storage-super-secret-jwt-key-2024" }
-routes = [
-  { pattern = "api-pan.ysunyang.qzz.io/*", zone_name = "ysunyang.qzz.io" }
-]
-[[env.backup2.d1_databases]]
-binding = "DB"
-database_name = "yisu-storage-db"
-database_id = "689a75be-d750-42f8-b6b2-ca7bfa884671"
-[[env.backup2.r2_buckets]]
-binding = "BUCKET"
-bucket_name = "yisu-storage-files"
+bucket_name = "sunnycloud-files"
 
 # 定时任务 - 每天凌晨0点清理过期文件
 [triggers]

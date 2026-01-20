@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import JSZip from 'jszip';
 import { apiFetch, getApiUrl } from '@/lib/apiClient';
-import { 
+import {
   CloudArrowUpIcon, 
   FolderIcon, 
   TrashIcon,
@@ -26,6 +26,7 @@ import {
   ChevronRightIcon,
   ClockIcon,
 } from '@heroicons/react/24/outline';
+import { ThemeToggle } from '../layout';
 
 // Types
 interface FileRecord {
@@ -732,24 +733,25 @@ export default function DashboardPage() {
             <CloudIcon className="w-7 h-7 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gradient">伊苏存储</h1>
-            <p className="text-sm text-white/50">{user?.email}</p>
+            <h1 className="text-xl font-bold text-gradient">SunnyCloud</h1>
+            <p className="text-sm text-muted">{user?.email}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-6">
           {stats && (
             <div className="text-center">
-              <p className="text-2xl font-bold text-white">{stats.totalFiles}</p>
-              <p className="text-xs text-white/50">文件</p>
+              <p className="text-2xl font-bold">{stats.totalFiles}</p>
+              <p className="text-xs text-muted">文件</p>
             </div>
           )}
           {stats && (
             <div className="text-center">
               <p className="text-2xl font-bold text-gradient">{formatFileSize(stats.totalSize)}</p>
-              <p className="text-xs text-white/50">已使用 / {formatFileSize(stats.storageLimit)}</p>
+              <p className="text-xs text-muted">已使用 / {formatFileSize(stats.storageLimit)}</p>
             </div>
           )}
+          <ThemeToggle />
           <button onClick={handleLogout} className="btn-secondary flex items-center gap-2 text-sm">
             <ArrowRightOnRectangleIcon className="w-4 h-4" />
             退出
