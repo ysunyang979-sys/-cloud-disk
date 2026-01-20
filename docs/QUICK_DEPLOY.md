@@ -236,5 +236,3 @@ const ALLOWED_USERS = [
 - 📝 [API 文档](../README.md#-api-接口) - 后端接口说明
 
 ---
-
-*最后更新: 2026年1月20日*
