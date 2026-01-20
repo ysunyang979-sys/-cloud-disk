@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/apiClient';
-import { ThemeToggle } from '../layout';
+import { ThemeToggle } from '@/components/ThemeProvider';
 import { 
   CloudIcon, 
   EyeIcon,

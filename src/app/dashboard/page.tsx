@@ -26,7 +26,7 @@ import {
   ChevronRightIcon,
   ClockIcon,
 } from '@heroicons/react/24/outline';
-import { ThemeToggle } from '../layout';
+import { ThemeToggle } from '@/components/ThemeProvider';
 
 // Types
 interface FileRecord {

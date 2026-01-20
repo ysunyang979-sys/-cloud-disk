@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ThemeToggle } from './layout';
+import { ThemeToggle } from '@/components/ThemeProvider';
 import { 
   CloudIcon, 
   ShieldCheckIcon, 
