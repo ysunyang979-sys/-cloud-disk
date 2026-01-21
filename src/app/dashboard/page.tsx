@@ -472,11 +472,12 @@ export default function DashboardPage() {
       }
 
       const groupId = createData.groupId;
-      const CONCURRENT_UPLOADS = 50; // 并发上传数量（最高性能）
+      const CONCURRENT_UPLOADS = 5; // 并发上传数量（平衡稳定性和速度）
 
-      // 上传单个文件的函数
-      const uploadSingleFile = async (entry: ZipFileEntry, index: number): Promise<boolean> => {
+      // 上传单个文件的函数（带重试）
+      const uploadSingleFile = async (entry: ZipFileEntry, index: number, retryCount = 0): Promise<boolean> => {
         const isLargeFile = entry.size > 100 * 1024 * 1024;
+        const MAX_RETRIES = 2;
         
         try {
           if (isLargeFile) {
@@ -494,9 +495,30 @@ export default function DashboardPage() {
               body: formData,
             });
 
+            if (!uploadResponse.ok) {
+              const errorData = await uploadResponse.json().catch(() => ({}));
+              console.error(`[Upload Failed] ${entry.name}: ${errorData.error || uploadResponse.status}`);
+              
+              // 重试逻辑
+              if (retryCount < MAX_RETRIES) {
+                console.log(`[Retry] ${entry.name} - 第 ${retryCount + 1} 次重试`);
+                await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+                return uploadSingleFile(entry, index, retryCount + 1);
+              }
+            }
+
             return uploadResponse.ok;
           }
-        } catch {
+        } catch (err) {
+          console.error(`[Upload Error] ${entry.name}:`, err);
+          
+          // 重试逻辑
+          if (retryCount < MAX_RETRIES) {
+            console.log(`[Retry] ${entry.name} - 第 ${retryCount + 1} 次重试`);
+            await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+            return uploadSingleFile(entry, index, retryCount + 1);
+          }
+          
           return false;
         }
       };
