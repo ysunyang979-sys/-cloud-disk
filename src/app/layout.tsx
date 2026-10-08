@@ -14,9 +14,9 @@ export const metadata: Metadata = {
   keywords: "文件存储, 云存储, 文件分享, Cloudflare, R2存储, 大文件上传, 加密分享, SunnyCloud",
   authors: [{ name: "SunnyCloud" }],
   icons: {
-    icon: '/YSCC.png',
-    shortcut: '/YSCC.png',
-    apple: '/YSCC.png',
+    icon: '/icon.png?v=3',
+    shortcut: '/icon.png?v=3',
+    apple: '/icon.png?v=3',
   },
   openGraph: {
     title: "SunnyCloud - 云端文件存储与分享",
